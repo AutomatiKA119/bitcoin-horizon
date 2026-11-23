@@ -361,7 +361,11 @@ for (const id of ["ghost-60", "ghost-30", "ghost-10"]) {
   reticle.before(ghost);
 }
 
-const HORIZON_FRAC = { sky: 0.45, sea: 0.40 };
+// Pixel row (in each source image) where the painted horizon line sits.
+// Measured from the files: horizon-bg.jpg is a 2px dark line on rows 288-289 of 576,
+// sea-bg.jpg is a dark line centred on row 283 of 720. These are read off the images,
+// not tuned by eye - re-measure if either image is replaced.
+const HORIZON_ROW = { sky: 289, sea: 283.5 };
 const IMAGE_SIZE = { sky: [1024, 576], sea: [1280, 720] };
 
 function placeHorizon() {
@@ -373,7 +377,7 @@ function placeHorizon() {
   const [imgW, imgH] = IMAGE_SIZE[key];
   const scale = Math.max(boxW / imgW, boxH / imgH);
   const displayedH = imgH * scale;
-  const yInWorld = (boxH - displayedH) / 2 + HORIZON_FRAC[key] * displayedH;
+  const yInWorld = (boxH - displayedH) / 2 + (HORIZON_ROW[key] / imgH) * displayedH;
   const screenY = boxTop + yInWorld;
   document.documentElement.style.setProperty("--sea", `${screenY}px`);
   world.style.transformOrigin = `50% ${(yInWorld / boxH) * 100}%`;
@@ -416,15 +420,20 @@ setInterval(refreshTip, 30000);
 setInterval(renderBlock, 1000);
 setInterval(refreshBooks, 45000);
 setInterval(renderRadio, 500);
-armRadio();
 mountAd(document.querySelector("#ad-slot"));
+// Radio is armed on the first user gesture (below), never at load: browsers block
+// audio before a gesture and log "AudioContext was not allowed to start".
 requestAnimationFrame(drawBowl);
 startScreensaver({
   button: document.querySelector("#fs-btn"),
   countEl: document.querySelector("#ss-count"),
   hintEl: document.querySelector("#ss-hint"),
 });
-window.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("#radio")) return;
+function armOnFirstGesture(event) {
+  if (event.target.closest && event.target.closest("#radio")) return;
+  window.removeEventListener("pointerdown", armOnFirstGesture);
+  window.removeEventListener("keydown", armOnFirstGesture);
   armRadio();
-}, { once: true });
+}
+window.addEventListener("pointerdown", armOnFirstGesture);
+window.addEventListener("keydown", armOnFirstGesture);
