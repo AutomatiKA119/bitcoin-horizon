@@ -119,11 +119,12 @@ export async function fetchSellWarnings() {
     /* Kraken is the primary book; a miss is reported by the caller if both fail. */
   }
   try {
-    const book = await fetchJson("https://api.gemini.com/v1/book/btcusd?limit_bids=50&limit_asks=50");
+    // Coinbase Exchange is already used for candles and allows browser CORS.
+    const book = await fetchJson("https://api.exchange.coinbase.com/products/BTC-USD/book?level=2");
     const pressure = sellPressure(levels(book.bids), levels(book.asks));
-    if (pressure?.warn) found.push({ venue: "Gemini", ...pressure });
+    if (pressure?.warn) found.push({ venue: "Coinbase", ...pressure });
   } catch {
-    /* Gemini often blocks browser CORS. Kraken still covers the warning. */
+    /* Kraken is checked first; a miss here only drops the second venue. */
   }
   return found;
 }

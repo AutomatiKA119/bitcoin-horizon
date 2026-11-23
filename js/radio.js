@@ -137,20 +137,30 @@ function noiseBurst(ctx, destination, when, dur, vel, highpass) {
 }
 
 export function createRadio(playlist) {
-  const ctx = new AudioContext();
-  const master = ctx.createGain();
-  master.gain.value = 0.22;
-  const delay = ctx.createDelay();
-  delay.delayTime.value = 0.22;
-  const feedback = ctx.createGain();
-  feedback.gain.value = 0.28;
-  const wet = ctx.createGain();
-  wet.gain.value = 0.35;
-  delay.connect(feedback);
-  feedback.connect(delay);
-  delay.connect(wet);
-  wet.connect(master);
-  master.connect(ctx.destination);
+  // The AudioContext is created lazily, inside a user gesture. Constructing it at
+  // page load is what triggers "The AudioContext was not allowed to start".
+  let ctx = null;
+  let master = null;
+  let delay = null;
+
+  function ensureAudio() {
+    if (ctx) return ctx;
+    ctx = new AudioContext();
+    master = ctx.createGain();
+    master.gain.value = 0.22;
+    delay = ctx.createDelay();
+    delay.delayTime.value = 0.22;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.28;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.35;
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(wet);
+    wet.connect(master);
+    master.connect(ctx.destination);
+    return ctx;
+  }
 
   const state = {
     playlist,
@@ -199,6 +209,7 @@ export function createRadio(playlist) {
   }
 
   function stopNodes() {
+    if (!ctx) return;
     for (const node of state.nodes) {
       try { node.gain.gain.cancelScheduledValues(ctx.currentTime); node.gain.gain.setValueAtTime(0.0001, ctx.currentTime); } catch { /* already stopped */ }
       try { node.osc.stop(); } catch { /* already stopped */ }
@@ -239,7 +250,7 @@ export function createRadio(playlist) {
   return {
     state,
     async startRandom() {
-      await ctx.resume();
+      await ensureAudio().resume();
       if (ctx.state !== "running") throw new Error("autoplay blocked");
       const index = Math.floor(Math.random() * playlist.length);
       await load(index);
@@ -254,7 +265,7 @@ export function createRadio(playlist) {
         state.offset = elapsed;
         return;
       }
-      await ctx.resume();
+      await ensureAudio().resume();
       if (!state.song) await this.startRandom();
       else schedule(state.offset);
     },

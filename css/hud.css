@@ -130,7 +130,7 @@ body.above #flash { background: #ff8c00; animation: blip 1s linear infinite; }
   position: fixed;
   left: 7vw;
   right: 7vw;
-  top: var(--sea);
+  top: calc(var(--sea) - 1px); /* centre the 2px .h-line on the painted horizon */
   z-index: 4;
   pointer-events: none;
   transition: transform 0.7s linear;
